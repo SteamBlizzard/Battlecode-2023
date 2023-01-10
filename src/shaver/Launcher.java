@@ -34,20 +34,20 @@ public class Launcher extends Robot {
             }
         }
 
-        if(defender){
-            int[] islands = rc.senseNearbyIslands();
-            if(islands.length>0){
-                for(int i : islands){
-                    if(rc.senseTeamOccupyingIsland(i) == rc.getTeam().opponent()){
-                        MapLocation[] islandLocs = rc.senseNearbyIslandLocations(i);
-                        if(islandLocs.length >0){
-                            fuzzyMove(islandLocs[0]);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+//        if(defender){
+//            int[] islands = rc.senseNearbyIslands();
+//            if(islands.length>0){
+//                for(int i : islands){
+//                    if(rc.senseTeamOccupyingIsland(i) == rc.getTeam().opponent()){
+//                        MapLocation[] islandLocs = rc.senseNearbyIslandLocations(i);
+//                        if(islandLocs.length >0){
+//                            fuzzyMove(islandLocs[0]);
+//                            break;
+//                        }
+//                    }
+//                }
+//            }
+//        }
 
 
         if(!attackNearby()) {
