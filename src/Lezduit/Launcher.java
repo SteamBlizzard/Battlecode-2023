@@ -74,6 +74,9 @@ public class Launcher extends Robot {
 
         if(target != null && rc.canAttack(target.location)){
             rc.attack(target.location);
+            if (!surrounding) {
+                fuzzyMove(dirTo(target.location).opposite());
+            }
         }else if (!surrounding){
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, rc.getTeam().opponent());
             if(visibleEnemies.length>0){
