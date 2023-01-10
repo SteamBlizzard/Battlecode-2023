@@ -19,6 +19,12 @@ public strictfp class RobotPlayer {
             RobotType.DESTABILIZER
     };
 
+    static public final ResourceType[] resourceTypes = {
+            ResourceType.ADAMANTIUM,
+            ResourceType.MANA,
+            ResourceType.ELIXIR
+    };
+
     static final Direction[] directions = {
             Direction.NORTH,
             Direction.NORTHEAST,

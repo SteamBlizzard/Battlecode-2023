@@ -1,6 +1,7 @@
 package WeBall;
 
 import battlecode.common.*;
+import scala.Int;
 
 public class Robot {
     RobotController rc;
@@ -9,8 +10,24 @@ public class Robot {
     boolean RIGHT = false;
 
     int homeID;
+
+    int width;
+    int height;
+
+    /*
+
+        Communication Table:
+        0 - 9: wells
+        10-19: islands
+
+
+     */
+
+
     public Robot(RobotController robot) throws GameActionException {
         rc = robot;
+        width = rc.getMapWidth();
+        height = rc.getMapHeight();
         RIGHT = Math.random() > 0.5;
         if (rc.getType() == RobotType.HEADQUARTERS) {
             home = rc.getLocation();
@@ -88,6 +105,45 @@ public class Robot {
         fuzzyMove(dirTo(loc));
     }
 
+    MapLocation lastLocation = null;
+    int minDist = Integer.MAX_VALUE;
+
+    public void bugNav(MapLocation loc) throws GameActionException{
+        if(loc != lastLocation){
+            minDist = Integer.MAX_VALUE;
+            lastLocation = loc;
+        }
+        if(loc.distanceSquaredTo(rc.getLocation().add(dirTo(loc)))<minDist && rc.canMove(dirTo(loc))){
+            rc.move(dirTo(loc));
+            minDist = distTo(loc);
+            return;
+        }else{
+            // Wall following time
+            Direction d = dirTo(loc);
+            boolean foundWall = false;
+            for (int i = 0; i < 9; i++){
+                // follow wall
+                if(foundWall && rc.canMove(d)){
+                    tryMove(d);
+                    return;
+                }
+                // find wall
+                if(!rc.canMove(d)){
+                    foundWall = true;
+                }
+                // rotate direction
+                if(RIGHT){
+                    d = d.rotateRight();
+                }else{
+                    d = d.rotateLeft();
+                }
+            }
+            if(!foundWall){
+                tryMove(dirTo(loc));
+            }
+        }
+    }
+
     public WellInfo closestWell(WellInfo[] wells, MapLocation from) throws GameActionException{
         int closest = Integer.MAX_VALUE;
         WellInfo closestWell = null;
@@ -103,4 +159,29 @@ public class Robot {
     public Direction dirTo(MapLocation loc) throws GameActionException{
         return rc.getLocation().directionTo(loc);
     }
+
+    public int distTo(MapLocation loc) throws GameActionException{
+        return rc.getLocation().distanceSquaredTo(loc);
+    }
+
+    public boolean touching(MapLocation loc) throws GameActionException{
+        return rc.getLocation().isAdjacentTo(loc) || rc.getLocation().equals(loc);
+    }
+    
+    public int locToInt(MapLocation loc) throws GameActionException{
+        return loc.x/4 + loc.y/4*rc.getMapWidth();
+    }
+
+    public MapLocation intToLoc(int i) throws GameActionException{
+        return new MapLocation((i%rc.getMapWidth())*4, (i/rc.getMapWidth())*4);
+    }
+
+    public MapLocation randomLocation(MapLocation[] locs){
+        return locs[(int)(Math.random()*locs.length)];
+    }
+
+
+
+
+
 }
