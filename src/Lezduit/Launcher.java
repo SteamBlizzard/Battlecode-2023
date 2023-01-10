@@ -65,22 +65,27 @@ public class Launcher extends Robot {
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, rc.getTeam().opponent());
         RobotInfo target = null;
         int minHealth = Integer.MAX_VALUE;
+        boolean runAway = false;
         for(RobotInfo r : enemies){
-            if(r.type != RobotType.HEADQUARTERS && r.health < minHealth){
+            if(r.type != RobotType.HEADQUARTERS && r.health < minHealth ||
+                    (r.getType() == RobotType.LAUNCHER && (target == null || target.getType() != RobotType.LAUNCHER))){
                 minHealth = r.health;
                 target = r;
+                if (target.getType() == RobotType.LAUNCHER) {
+                    runAway = true;
+                }
             }
         }
 
         if(target != null && rc.canAttack(target.location)){
             rc.attack(target.location);
-            if (!surrounding) {
+            if (!surrounding && runAway) {
                 fuzzyMove(dirTo(target.location).opposite());
             }
         }else if (!surrounding){
             RobotInfo[] visibleEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, rc.getTeam().opponent());
             if(visibleEnemies.length>0){
-                fuzzyMove(visibleEnemies[0].location);
+                bugNav(visibleEnemies[0].location);
             }else{
                 if(bestFriend!=null){
                     if(!rc.getLocation().add(dirTo(bestFriend.getLocation())).isAdjacentTo(bestFriend.getLocation())){
