@@ -19,7 +19,15 @@ public class Carrier extends Robot {
         RobotInfo hq = rc.senseRobotAtLocation(home);
         if(hq.getNumAnchors(Anchor.STANDARD) > 0){
             anchorer = true;
+        }else{
+            WellInfo[] nearbyWells = rc.senseNearbyWells(rc.getType().visionRadiusSquared);
+
+            if (mainWell == null) {
+                mainWell = closestWell(nearbyWells, rc.getLocation());
+            }
         }
+
+
         exploreLocations = new MapLocation[] {
                 new MapLocation(2,2),
                 new MapLocation(width-2,2),
@@ -31,13 +39,16 @@ public class Carrier extends Robot {
     }
 
     public void turn() throws Exception{
+        // run away from enemies
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.LAUNCHER.visionRadiusSquared,rc.getTeam().opponent());
         for(RobotInfo r : enemies){
             if(r.type == RobotType.LAUNCHER){
-                fuzzyMove(dirTo(r.location).opposite());
-                if(distTo(r.location)<RobotType.LAUNCHER.visionRadiusSquared) {
-                    fuzzyMove(dirTo(r.location).opposite());
+                //rc.getHealth()<rc.getType().getMaxHealth() &&
+                if(rc.canAttack(r.location)){
+                    rc.attack(r.location);
                 }
+                fuzzyMove(dirTo(r.location).opposite());
+                fuzzyMove(dirTo(r.location).opposite());
             }
         }
         if(anchorer){
@@ -54,19 +65,24 @@ public class Carrier extends Robot {
             if(!mining){
                 if(touching(home)){
                     transferAllResources(home);
+                    rc.setIndicatorString(home.toString());
                     if(getWeight()==0){
                         mining = true;
                     }
+                }else {
+                    bugNav(home);
                 }
-                bugNav(home);
             }else{
+                rc.setIndicatorString("mining");
                 if(touching(mainWell.getMapLocation())){
                     tryGetResource(mainWell);
                     if(getWeight() == GameConstants.CARRIER_CAPACITY){
                         mining = false;
                     }
+                }else{
+                    bugNav(mainWell.getMapLocation());
+                    bugNav(mainWell.getMapLocation());
                 }
-                bugNav(mainWell.getMapLocation());
             }
         }else{
             explore();

@@ -1,6 +1,7 @@
 package shaver;
 
 import battlecode.common.*;
+import scala.Int;
 
 public class Robot {
     RobotController rc;
@@ -35,7 +36,7 @@ public class Robot {
         } else {
             // Setup Navigation
         }
-        for(RobotInfo r:rc.senseNearbyRobots(3,  rc.getTeam())) {
+        for(RobotInfo r:rc.senseNearbyRobots(rc.getType().visionRadiusSquared,  rc.getTeam())) {
             if(r.type==RobotType.HEADQUARTERS) {
                 home = r.location;
                 homeID = r.ID;
@@ -109,40 +110,51 @@ public class Robot {
     int bugNavTurns = 0;
     int MAX_BUG_NAV_TURNS = 60;
     public void bugNav(MapLocation loc) throws GameActionException{
+        Direction dir = dirTo(loc);
+        Direction[] fuzzyDirs = new Direction[] {
+                dir,
+                dir.rotateRight(),
+                dir.rotateLeft(),
+                dir.rotateRight().rotateRight(),
+                dir.rotateLeft().rotateLeft(),
+                dir.rotateRight().rotateRight().rotateRight(),
+                dir.rotateLeft().rotateLeft().rotateLeft(),
+        };
         if(loc != lastLocation || bugNavTurns >= MAX_BUG_NAV_TURNS){
             minDist = Integer.MAX_VALUE;
             lastLocation = loc;
             bugNavTurns = 0;
         }
         bugNavTurns++;
-        if(loc.distanceSquaredTo(rc.getLocation().add(dirTo(loc)))<minDist && rc.canMove(dirTo(loc))){
-            rc.move(dirTo(loc));
-            minDist = distTo(loc);
-            return;
-        }else{
-            // Wall following time
-            Direction d = dirTo(loc);
-            boolean foundWall = false;
-            for (int i = 0; i < 9; i++){
-                // follow wall
-                if(foundWall && rc.canMove(d)){
-                    tryMove(d);
-                    return;
-                }
-                // find wall
-                if(!rc.canMove(d)){
-                    foundWall = true;
-                }
-                // rotate direction
-                if(RIGHT){
-                    d = d.rotateRight();
-                }else{
-                    d = d.rotateLeft();
-                }
+        for(Direction d : fuzzyDirs){
+            if(loc.distanceSquaredTo(rc.getLocation().add(d))<minDist && rc.canMove(d)){
+                rc.move(d);
+                minDist = distTo(loc);
+                return;
             }
-            if(!foundWall){
-                tryMove(dirTo(loc));
+        }
+        // Wall following time
+        Direction d = dirTo(loc);
+        boolean foundWall = false;
+        for (int i = 0; i < 9; i++){
+            // follow wall
+            if(foundWall && rc.canMove(d)){
+                tryMove(d);
+                return;
             }
+            // find wall
+            if(rc.onTheMap(rc.getLocation().add(d)) && !rc.sensePassability(rc.getLocation().add(d))){
+                foundWall = true;
+            }
+            // rotate direction
+            if(RIGHT){
+                d = d.rotateRight();
+            }else{
+                d = d.rotateLeft();
+            }
+        }
+        if(!foundWall){
+            fuzzyMove(dirTo(loc));
         }
     }
 
@@ -177,6 +189,8 @@ public class Robot {
     public MapLocation intToLoc(int i) throws GameActionException{
         return new MapLocation((i%rc.getMapWidth())*4, (i/rc.getMapWidth())*4);
     }
+
+
 
     public MapLocation randomLocation(MapLocation[] locs){
         return locs[(int)(Math.random()*locs.length)];
