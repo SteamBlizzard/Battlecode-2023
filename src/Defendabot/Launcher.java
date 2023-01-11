@@ -1,4 +1,4 @@
-package Block;
+package Defendabot;
 
 import battlecode.common.*;
 
@@ -43,7 +43,9 @@ public class Launcher extends Robot {
             boolean foundEnemy = false;
             for(RobotInfo r : visibleEnemies){
                 if(r.type != RobotType.HEADQUARTERS){
-                    fuzzyMove(visibleEnemies[0].location);
+//                    if(r.type != RobotType.LAUNCHER){
+                        fuzzyMove(r.location);
+//                    }
                     attackNearby();
                     foundEnemy = true;
                     break;
@@ -51,41 +53,27 @@ public class Launcher extends Robot {
             }
             // if nobody to attack
             if(!foundEnemy){
-                // follow best friend if you defend
-                if(defender){
-                    if(bestFriend!=null){
-                        if(!rc.getLocation().add(dirTo(bestFriend.getLocation())).isAdjacentTo(bestFriend.getLocation())){
-                            fuzzyMove(bestFriend.getLocation());
-                        }else{
-                            fuzzyMove(dirTo(bestFriend.getLocation()).opposite());
-                        }
-                    }else{
-                        fuzzyMove(RobotPlayer.randomDirection());
-                    }
-                }else{
-                    // go to closest help if someone needs help
-                    MapLocation closestHelp = closestCryForHelp();
-                    if(closestHelp!=null){
-                        bugNav(closestHelp);
+
+                // go to closest help if someone needs help
+                MapLocation closestHelp = closestCryForHelp();
+                if(closestHelp!=null){
+                    bugNav(closestHelp);
 
                     // otherwise group together and attack
-                    }else{
-                        // Attacker logic
-                        squadGobble(friends);
-                        attackNearby();
-                    }
+                }else{
+                    // Attacker logic
+                    squadGobble(friends);
+                    attackNearby();
                 }
             }
         }
     }
 
     public void squadGobble(RobotInfo[] friends) throws GameActionException {
-        if (!rc.canSenseRobot(leaderID) || leaderID == rc.getID()) {
-            leaderID = rc.getID();
-            for (RobotInfo r : friends) {
-                if (r.getType().equals(RobotType.LAUNCHER) && r.getID() < leaderID) {
-                    leaderID = r.getID();
-                }
+        leaderID = rc.getID();
+        for (RobotInfo r : friends) {
+            if (r.getType().equals(RobotType.LAUNCHER) && r.getID() < leaderID) {
+                leaderID = r.getID();
             }
         }
         if (leaderID == rc.getID()) {
@@ -122,8 +110,15 @@ public class Launcher extends Robot {
         }
         if(target != null && rc.canAttack(target.location)){
             rc.attack(target.location);
-            if(target.type == RobotType.LAUNCHER){
-                tryMove(dirTo(target.location).opposite());
+            if(target.type == RobotType.LAUNCHER && target.health>RobotType.LAUNCHER.damage){
+                RobotInfo[] friends = rc.senseNearbyRobots(rc.getType().visionRadiusSquared);
+                for(RobotInfo f : friends){
+                    if(f.type == RobotType.LAUNCHER){
+                        fuzzyMove(f.location);
+                        return true;
+                    }
+                }
+                fuzzyMove(dirTo(target.location).opposite());
             }
             return true;
         }
