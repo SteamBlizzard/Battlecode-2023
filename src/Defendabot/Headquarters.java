@@ -5,6 +5,7 @@ import battlecode.common.*;
 public class Headquarters extends Robot {
 
     int carrierCount = 0;
+    int amplifierCount = 0;
     int MAX_CARRIER_COUNT = 10;
 
     WellInfo[] nearbyWells = new WellInfo[0];
@@ -13,11 +14,23 @@ public class Headquarters extends Robot {
     public Headquarters(RobotController rc) throws GameActionException {
         super(rc);
         nearbyWells = rc.senseNearbyWells();
+        writeHQlocation(new MapLocation(width - 1 - home.x,home.y));
+        writeHQlocation(new MapLocation(home.x,height - 1 - home.y));
+        writeHQlocation(new MapLocation(width - 1 - home.x,height - 1 - home.y));
     }
 
     public void turn() throws Exception {
+        if(rc.getRoundNum()%2 != 0){
+            amplifierCount = rc.readSharedArray(AMPLIFIER_COUNT_INDEX);
+        }
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared,rc.getTeam().opponent());
-        if(enemies.length>0){
+        int turkeys = 0;
+        for(RobotInfo e : enemies){
+            if(e.type.equals(RobotType.LAUNCHER)){
+                turkeys++;
+            }
+        }
+        if(turkeys>0){
             cryForHelp(home);
             buildClosestTo(enemies[0].location, RobotType.LAUNCHER);
         }else{
@@ -25,6 +38,12 @@ public class Headquarters extends Robot {
         }
 
         if(carrierCount < MAX_CARRIER_COUNT){
+            if(amplifierCount<1){
+                if(buildClosestTo(new MapLocation(width-home.x, height-home.y), RobotType.AMPLIFIER)){
+                    incrementSharedArray(AMPLIFIER_COUNT_INDEX);
+                    amplifierCount++;
+                };
+            }
             buildClosestTo(new MapLocation(width-home.x, height-home.y), RobotType.LAUNCHER);
             buildCarrier();
         } else if (rc.getAnchor() == null) {
@@ -50,6 +69,21 @@ public class Headquarters extends Robot {
 
         if(rc.getResourceAmount(ResourceType.ADAMANTIUM)>100 && carriers<15){
             buildCarrier();
+        }
+        if(amplifierCount<2){
+            if(buildClosestTo(new MapLocation(width-home.x, height-home.y), RobotType.AMPLIFIER)){
+                incrementSharedArray(AMPLIFIER_COUNT_INDEX);
+                amplifierCount++;
+            };
+        }
+
+
+        // comms
+        if(rc.getRoundNum()%2==0){
+            if(rc.canWriteSharedArray(AMPLIFIER_COUNT_INDEX,0)){
+                rc.writeSharedArray(AMPLIFIER_COUNT_INDEX,0);
+                amplifierCount = 0;
+            }
         }
     }
 

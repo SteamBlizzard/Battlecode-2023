@@ -2,6 +2,8 @@ package Defendabot;
 
 import battlecode.common.*;
 
+import java.util.ArrayList;
+
 public class Robot {
     RobotController rc;
     MapLocation home = null;
@@ -18,7 +20,7 @@ public class Robot {
         Communication Table:
         0 -19: wells
         20-29: help us
-
+        30-41: possible enemy HQs
 
      */
 
@@ -26,6 +28,13 @@ public class Robot {
     int WELL_MAX_INDEX = 19;
     int HELP_US_MIN_INDEX = 20;
     int HELP_US_MAX_INDEX = 29;
+    int POSSIBLE_HQ_MIN_INDEX = 30;
+    int POSSIBLE_HQ_MAX_INDEX = 41;
+    int AMPLIFIER_COUNT_INDEX = 42;
+    int AMPLIFIER_MIN_INDEX = 43;
+    int AMPLIFIER_MAX_INDEX = 47;
+    int ENEMY_LOCATIONS_MIN = 48;
+    int ENEMY_LOCATION_MAX = 60;
 
 
     public Robot(RobotController robot) throws GameActionException {
@@ -134,10 +143,10 @@ public class Robot {
         return closestLoc;
     }
 
-    public void cryForHelp(MapLocation loc) throws GameActionException{
+    public void writeLocationToArray(MapLocation loc, int MIN_INDEX, int MAX_INDEX) throws GameActionException{
         int locCode = locToInt(loc);
         int firstHoleIndex = 0;
-        for(int i = HELP_US_MIN_INDEX; i <= HELP_US_MAX_INDEX; i++){
+        for(int i = MIN_INDEX; i <= MAX_INDEX; i++){
             int code = rc.readSharedArray(i);
             if(code == locCode){
                 return;
@@ -151,10 +160,20 @@ public class Robot {
         }
     }
 
-    public MapLocation closestCryForHelp() throws GameActionException{
+    public void clearLocationFromArray(MapLocation loc, int MIN_INDEX, int MAX_INDEX) throws GameActionException{
+        int locCode = locToInt(loc);
+        for(int i = MIN_INDEX; i <= MAX_INDEX; i++){
+            if(rc.readSharedArray(i) == locCode && rc.canWriteSharedArray(i,0)){
+                rc.writeSharedArray(i,0);
+                return;
+            }
+        }
+    }
+
+    public MapLocation closestLocationFromArray(int MIN_INDEX, int MAX_INDEX) throws GameActionException{
         MapLocation closestLoc = null;
         int closestDist = Integer.MAX_VALUE;
-        for(int i = HELP_US_MIN_INDEX; i <= HELP_US_MAX_INDEX; i++){
+        for(int i = MIN_INDEX; i <= MAX_INDEX; i++){
             int code = rc.readSharedArray(i);
             if(code!=0){
                 MapLocation loc = intToLoc(code);
@@ -168,14 +187,43 @@ public class Robot {
         return closestLoc;
     }
 
+    public void incrementSharedArray(int index) throws GameActionException{
+        int ampCount = rc.readSharedArray(index);
+        if(rc.canWriteSharedArray(index,ampCount+1));{
+            rc.writeSharedArray(index,ampCount+1);
+        }
+    }
+
+    public void cryForHelp(MapLocation loc) throws GameActionException{
+        writeLocationToArray(loc,HELP_US_MIN_INDEX,HELP_US_MAX_INDEX);
+    }
+
+    public MapLocation closestCryForHelp() throws GameActionException{
+        return closestLocationFromArray(HELP_US_MIN_INDEX,HELP_US_MAX_INDEX);
+    }
+
     public void clearCry(MapLocation loc) throws GameActionException{
-        int locCode = locToInt(loc);
-        for(int i = HELP_US_MIN_INDEX; i <= HELP_US_MAX_INDEX; i++){
-            if(rc.readSharedArray(i) == locCode && rc.canWriteSharedArray(i,0)){
-                rc.writeSharedArray(i,0);
-                return;
+        clearLocationFromArray(loc,HELP_US_MIN_INDEX,HELP_US_MAX_INDEX);
+    }
+
+    public void writeHQlocation(MapLocation loc) throws GameActionException{
+        writeLocationToArray(loc,POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX);
+    }
+
+    public ArrayList<MapLocation> allPossibleHQs() throws GameActionException{
+        ArrayList<MapLocation> result = new ArrayList<>();
+        for(int i = POSSIBLE_HQ_MIN_INDEX; i <= POSSIBLE_HQ_MAX_INDEX; i++){
+            int code = rc.readSharedArray(i);
+            if(code!=0){
+                MapLocation loc = intToLoc(code);
+                result.add(loc);
             }
         }
+        return result;
+    }
+
+    public void removeHQlocation(MapLocation loc) throws GameActionException{
+        clearLocationFromArray(loc,POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX);
     }
 
     // tries moving in the given direction dir
@@ -193,6 +241,15 @@ public class Robot {
             return true;
         }
         return false;
+    }
+    public int adjacentTurkeys() throws GameActionException{
+        int turkeys = 0;
+        for(RobotInfo r : rc.senseNearbyRobots(2,rc.getTeam())){
+            if(r.getType().equals(RobotType.LAUNCHER)){
+                turkeys++;
+            }
+        }
+        return turkeys;
     }
 
     public void fuzzyMove(Direction dir) throws GameActionException{
@@ -250,7 +307,6 @@ public class Robot {
             lastLocation = loc;
             bugNavTurns = 0;
         }
-        rc.setIndicatorString(Integer.toString(bugNavTurns));
         rc.setIndicatorDot(loc,0,255,255);
         bugNavTurns++;
         for(Direction d : fuzzyDirs){
@@ -321,6 +377,12 @@ public class Robot {
 
     public MapLocation randomLocation(MapLocation[] locs){
         return locs[(int)(Math.random()*locs.length)];
+    }
+    public MapLocation randomLocation(ArrayList<MapLocation> locs){
+        if(locs.size()==0){
+            return null;
+        }
+        return locs.get((int)(Math.random()*locs.size()));
     }
 
 
