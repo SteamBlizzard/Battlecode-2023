@@ -98,7 +98,7 @@ public class Headquarters extends Robot {
                 if(rc.canSenseRobotAtLocation(loc)){
                     r = rc.senseRobotAtLocation(loc);
                 }
-                if(r==null || r.team != rc.getTeam().opponent()){
+                if(rc.canSenseLocation(loc) && (r==null || r.team != rc.getTeam().opponent())){
                     clearLocationFromArray(loc,ENEMY_LOCATION_MIN_INDEX,ENEMY_LOCATION_MAX_INDEX);
                 }
             }
@@ -120,7 +120,7 @@ public class Headquarters extends Robot {
         if(carrierCount < MAX_CARRIER_COUNT){
             buildClosestTo(closestEnemyHQ, RobotType.LAUNCHER);
             buildCarrier();
-        } else if (rc.getRoundNum()>200 && rc.getAnchor() == null) {
+        } else if (rc.getRoundNum()>200 && rc.getNumAnchors(Anchor.STANDARD) == 0) {
             rc.setIndicatorString("trying to build a thing?");
             tryBuildAnchor();
         }else {

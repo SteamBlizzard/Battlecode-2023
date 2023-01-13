@@ -1,8 +1,7 @@
-package GlovesOff;
+package SuperiorerCowPowers;
 
 import battlecode.common.*;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Launcher extends Robot {
@@ -28,17 +27,7 @@ public class Launcher extends Robot {
     }
 
 
-    int age = 0;
-
     public void turn() throws Exception {
-        age++;
-
-        if(age<2){
-            if(rc.getRoundNum()%2==1){
-                return;
-            }
-        }
-
         findSquad();
 
         if(!attackNearby()) {
@@ -46,8 +35,7 @@ public class Launcher extends Robot {
             boolean foundEnemy = false;
             for(RobotInfo r : visibleEnemies){
                 if(r.type != RobotType.HEADQUARTERS){
-                    fuzzyClosest(r.location,squadAverageLocation);
-                    rc.setIndicatorDot(r.location,255,0,0);
+                    fuzzyMove(r.location);
                     attackNearby();
                     tryAttack(r.location);
                     foundEnemy = true;
@@ -57,6 +45,10 @@ public class Launcher extends Robot {
             }
             // if nobody to attack
             if(!foundEnemy){
+                if(lastAttack!=null){
+                    tryAttack(lastAttack);
+
+                }
                 // Attacker logic
                 squadGobble();
                 attackNearby();
@@ -119,41 +111,29 @@ public class Launcher extends Robot {
         }
         mySquad = newSquad;
     }
+
     public void squadGobble() throws GameActionException {
         if(inDanger!=null){
             fuzzyMove(inDanger.location);
         }else{
-            MapLocation closestEnemy = closestLocationFromArray(ENEMY_LOCATION_MIN_INDEX,ENEMY_LOCATION_MAX_INDEX);
-//            if(closestEnemy!=null){
-//                bugNav(closestEnemy);
-//            }else{
-                if (leaderID == rc.getID()) {
-                    if(adjacentLaunchers >= Math.min(2,packSize-1)){
-                        bugNav(exploreTarget);
-                        exploreTurns++;
-                        if (touching(exploreTarget) || exploreTurns > MAX_EXPLORE_TURNS) {
-                            exploreTarget = randomLocation(allPossibleHQs());
-                            exploreTurns = 0;
-                        }
-                    }else{
-                        fuzzyMove(squadAverageLocation);
+            if (leaderID == rc.getID()) {
+                if(adjacentLaunchers >= Math.min(2,packSize)){
+                    bugNav(exploreTarget);
+                    exploreTurns++;
+                    if ((rc.canSenseLocation(exploreTarget) && (rc.senseRobotAtLocation(exploreTarget) == null || touching(exploreTarget))) || exploreTurns > MAX_EXPLORE_TURNS) {
+                        exploreTarget = randomLocation(allPossibleHQs());
+                        exploreTurns = 0;
                     }
-
-//            bugNav(closestLocationFromArray(POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX));
-                } else {
-                    if(rc.canSenseRobot(leaderID)){
-                        RobotInfo leader = rc.senseRobot(leaderID);
-                        Direction dirToClosestHQ = dirTo(closestLocationFromArray(POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX));
-
-                        fuzzyMove(leader.getLocation().add(dirToClosestHQ));
-                        rc.setIndicatorLine(rc.getLocation(), leader.getLocation(), 165, 42, 42);
-                    }else{
-                        fuzzyMove(squadAverageLocation);
-                    }
+                }else{
+//                    fuzzyMove(squadAverageLocation);
                 }
-//            }
-
+            } else {
+                RobotInfo leader = rc.senseRobot(leaderID);
+                fuzzyMove(leader.getLocation());
+                rc.setIndicatorLine(rc.getLocation(), leader.getLocation(), 165, 42, 42);
+            }
         }
+
     }
 
     public boolean attackNearby() throws GameActionException{
@@ -161,21 +141,24 @@ public class Launcher extends Robot {
         RobotInfo target = null;
         boolean targetIsLauncher = false;
         int minHealth = Integer.MAX_VALUE;
-        int minID = Integer.MAX_VALUE;
         for(RobotInfo r : enemies){
-            if((!targetIsLauncher && r.type != RobotType.HEADQUARTERS && (r.health < minHealth || (r.health == minHealth && r.ID < minID))) ||
+            if((!targetIsLauncher && r.type != RobotType.HEADQUARTERS && r.health < minHealth) ||
                     (!targetIsLauncher && r.type == RobotType.LAUNCHER) ||
-                    (targetIsLauncher && r.type == RobotType.LAUNCHER && (r.health < minHealth || (r.health == minHealth && r.ID < minID)))){
+                    (targetIsLauncher && r.type == RobotType.LAUNCHER && r.health < minHealth)){
                 if(r.type == RobotType.LAUNCHER){
                     targetIsLauncher = true;
+                    minHealth = r.health;
                 }
                 minHealth = r.health;
                 target = r;
-                minID = r.ID;
             }
         }
         if(target != null && rc.canAttack(target.location)){
             rc.attack(target.location);
+            lastAttack = target.location;
+//            if(target.type == RobotType.LAUNCHER){
+//                tryMove(dirTo(target.location).opposite());
+//            }
             if(target.type == RobotType.LAUNCHER || (target.type == RobotType.CARRIER && distTo(target.location) <= RobotType.CARRIER.actionRadiusSquared)){
                 if(squadAverageLocation!=null){
                     if(!touching(squadAverageLocation)){
@@ -189,6 +172,7 @@ public class Launcher extends Robot {
         }
         return false;
     }
+
 
     public boolean tryMove(Direction dir) throws GameActionException{
         if(rc.getRoundNum()%2==0){

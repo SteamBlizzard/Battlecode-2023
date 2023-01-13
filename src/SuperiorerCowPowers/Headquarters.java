@@ -1,4 +1,4 @@
-package SuperiorCowPowers;
+package SuperiorerCowPowers;
 
 import battlecode.common.*;
 
@@ -97,7 +97,8 @@ public class Headquarters extends Robot {
         }
         if(launchers > 0){
 //            cryForHelp(home);
-            buildClosestTo(enemies[0].location, RobotType.LAUNCHER);
+            buildFurthestFrom(enemies[0].location, RobotType.LAUNCHER);
+            return;
         }
 
         if(carrierCount < MAX_CARRIER_COUNT){
@@ -179,7 +180,7 @@ public class Headquarters extends Robot {
         int closest = Integer.MAX_VALUE;
 
         for(MapLocation loc : rc.getAllLocationsWithinRadiusSquared(rc.getLocation(),GameConstants.DISTANCE_SQUARED_FROM_HEADQUARTER)){
-            if(loc.distanceSquaredTo(to)<closest && rc.canBuildRobot(rt,loc)){
+            if(loc.distanceSquaredTo(to)<closest && rc.canBuildRobot(rt,loc) && rc.senseMapInfo(loc).getCurrentDirection()==Direction.CENTER){
                 closest = loc.distanceSquaredTo(to);
                 closestLoc = loc;
             }
@@ -189,5 +190,9 @@ public class Headquarters extends Robot {
             return true;
         }
         return false;
+    }
+    public boolean buildFurthestFrom(MapLocation from, RobotType rt) throws GameActionException {
+        MapLocation myLoc = rc.getLocation();
+        return buildClosestTo(new MapLocation(myLoc.x - (from.x - myLoc.x), myLoc.y - (from.y - myLoc.y)), rt);
     }
 }
