@@ -113,7 +113,4 @@ public class Launcher extends Robot {
         }
         return false;
     }
-
-
-
 }
