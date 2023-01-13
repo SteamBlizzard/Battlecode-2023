@@ -23,7 +23,7 @@ public class Launcher extends Robot {
                 new MapLocation(home.x,height - home.y),
                 new MapLocation(width - home.x,height - home.y)
         };
-        exploreTarget = randomLocation(allPossibleHQs());
+        exploreTarget = closestLocationFromArray(POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX);
         leaderID = rc.getID();
     }
 
@@ -58,54 +58,78 @@ public class Launcher extends Robot {
     HashMap<Integer,Integer> mySquad = new HashMap<Integer,Integer>();
     MapLocation squadAverageLocation;
     RobotInfo inDanger = null;
+    int dangerCounter = 0;
+    boolean packless = false;
     public void findSquad() throws GameActionException{
-        inDanger = null;
+        if(dangerCounter<=0){
+            inDanger = null;
+        }
+        dangerCounter--;
         HashMap<Integer,Integer> newSquad = new HashMap<Integer,Integer>();
         int x = 0;
         int y = 0;
         packSize = 0;
-        if (!rc.canSenseRobot(leaderID) || leaderID == rc.getID()) {
-            leaderID = rc.getID();
-            for (RobotInfo r : rc.senseNearbyRobots(rc.getType().visionRadiusSquared,rc.getTeam())) {
-                if(r.type.equals(RobotType.LAUNCHER)){
-                    packSize++;
-                    x += r.location.x;
-                    y += r.location.y;
-                    Integer lastHealth = mySquad.get(r.ID);
-                    if(lastHealth != null && r.health < lastHealth){
-                        inDanger = r;
-                    }
-                    newSquad.put(r.ID,r.health);
+
+        leaderID = rc.getID();
+        for (RobotInfo r : rc.senseNearbyRobots(rc.getType().visionRadiusSquared,rc.getTeam())) {
+            if(r.type.equals(RobotType.LAUNCHER)){
+                packSize++;
+                x += r.location.x;
+                y += r.location.y;
+                Integer lastHealth = mySquad.get(r.ID);
+                if(lastHealth != null && r.health < lastHealth && (inDanger == null || distTo(r.location) < distTo(inDanger.location))){
+                    inDanger = r;
+                    dangerCounter = 2;
                 }
-                if (r.getType().equals(RobotType.LAUNCHER) && r.getID() < leaderID) {
-                    leaderID = r.getID();
-                }
+                newSquad.put(r.ID,r.health);
+            }
+            if (r.getType().equals(RobotType.LAUNCHER) && r.getID() < leaderID) {
+                leaderID = r.getID();
             }
         }
+
+        if(inDanger!=null){
+            rc.setIndicatorDot(inDanger.location,255,0,0);
+            rc.setIndicatorString(Integer.toString(inDanger.ID));
+        }
         if(packSize>0){
-            squadAverageLocation = new MapLocation(x/packSize, y/packSize);
+            packless = false;
+            squadAverageLocation = new MapLocation((int)Math.round(x/(double)packSize), (int)Math.round(y/(double)packSize));
+            rc.setIndicatorDot(squadAverageLocation,0,255,0);
+        }else if(packless){
+            squadAverageLocation = null;
+        }else{
+            packless = true;
         }
         mySquad = newSquad;
     }
     public void squadGobble() throws GameActionException {
-
-        if (leaderID == rc.getID()) {
-            if(inDanger!=null){
-                fuzzyMove(inDanger.location);
-            }else{
-                bugNav(exploreTarget);
-                exploreTurns++;
-                if (rc.canSenseLocation(exploreTarget) || exploreTurns > MAX_EXPLORE_TURNS) {
-                    exploreTarget = randomLocation(allPossibleHQs());
-                    exploreTurns = 0;
+        if(inDanger!=null){
+            fuzzyMove(inDanger.location);
+        }else{
+            if (leaderID == rc.getID()) {
+                MapLocation closestEnemy = closestLocationFromArray(ENEMY_LOCATION_MIN_INDEX,ENEMY_LOCATION_MAX_INDEX);
+                if(closestEnemy== null){
+                    bugNav(exploreTarget);
+                    exploreTurns++;
+                    if (rc.canSenseLocation(exploreTarget) || exploreTurns > MAX_EXPLORE_TURNS) {
+                        exploreTarget = randomLocation(allPossibleHQs());
+                        exploreTurns = 0;
+                    }
+                }else{
+                    bugNav(closestEnemy);
                 }
 //            bugNav(closestLocationFromArray(POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX));
                 rc.setIndicatorDot(rc.getLocation(), 0, 255, 0);
+            } else {
+                if(rc.canSenseRobot(leaderID)){
+                    RobotInfo leader = rc.senseRobot(leaderID);
+                    fuzzyMove(leader.getLocation().add(dirTo(closestLocationFromArray(POSSIBLE_HQ_MIN_INDEX,POSSIBLE_HQ_MAX_INDEX))));
+                    rc.setIndicatorLine(rc.getLocation(), leader.getLocation(), 165, 42, 42);
+                }else{
+                    fuzzyMove(squadAverageLocation);
+                }
             }
-        } else {
-            RobotInfo leader = rc.senseRobot(leaderID);
-            fuzzyMove(leader.getLocation());
-            rc.setIndicatorLine(rc.getLocation(), leader.getLocation(), 165, 42, 42);
         }
     }
 
@@ -114,15 +138,17 @@ public class Launcher extends Robot {
         RobotInfo target = null;
         boolean targetIsLauncher = false;
         int minHealth = Integer.MAX_VALUE;
+        int minID = Integer.MAX_VALUE;
         for(RobotInfo r : enemies){
-            if((!targetIsLauncher && r.type != RobotType.HEADQUARTERS && r.health < minHealth) ||
+            if((!targetIsLauncher && r.type != RobotType.HEADQUARTERS && (r.health < minHealth || (r.health == minHealth && r.ID < minID))) ||
                     (!targetIsLauncher && r.type == RobotType.LAUNCHER) ||
-                    (targetIsLauncher && r.type == RobotType.LAUNCHER && r.health < minHealth)){
+                    (targetIsLauncher && r.type == RobotType.LAUNCHER && (r.health < minHealth || (r.health == minHealth && r.ID < minID)))){
                 if(r.type == RobotType.LAUNCHER){
                     targetIsLauncher = true;
                 }
                 minHealth = r.health;
                 target = r;
+                minID = r.ID;
             }
         }
         if(target != null && rc.canAttack(target.location)){
@@ -131,7 +157,7 @@ public class Launcher extends Robot {
                 if(squadAverageLocation!=null){
                     fuzzyMove(squadAverageLocation);
                 }else{
-                    tryMove(dirTo(target.location).opposite());
+                    fuzzyMove(dirTo(target.location).opposite());
                 }
 
             }

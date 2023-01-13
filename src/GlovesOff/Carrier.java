@@ -42,7 +42,11 @@ public class Carrier extends Robot {
         exploreTarget = randomLocation(exploreLocations);
     }
 
+    RobotInfo danger;
+    int dangerTurns = 0;
+
     public void turn() throws Exception{
+        dangerTurns--;
         // how many friendly launchers
         int nearbyLaunchers = 0;
         for(RobotInfo f : rc.senseNearbyRobots(rc.getType().visionRadiusSquared,rc.getTeam())){
@@ -54,27 +58,36 @@ public class Carrier extends Robot {
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.CARRIER.visionRadiusSquared,rc.getTeam().opponent());
         for(RobotInfo r : enemies){
             if(r.type == RobotType.LAUNCHER){
+                danger = r;
+                dangerTurns = 4;
                 if(getWeight()>0){
                     if(!tryAttack(r.location)){
                         if(rc.getHealth()<=5 || nearbyLaunchers == 0){
                             fuzzyMove(r.location);
                             tryAttack(r.location);
+                            adamantiumMining = !adamantiumMining;
                         }
                     }
                 } else{
                     fuzzyMove(dirTo(r.location).opposite());
                     fuzzyMove(dirTo(r.location).opposite());
+                    adamantiumMining = !adamantiumMining;
                     break;
                 }
             }
         }
-        if(anchorer){
-            // special chosen anchorer functionality
-            deliverAnchor();
+        if(dangerTurns>0){
+            fuzzyMove(dirTo(danger.location).opposite());
         }else{
-            // normal carrier functionality
-            normalCarrierTurn();
+            if(anchorer){
+                // special chosen anchorer functionality
+                deliverAnchor();
+            }else{
+                // normal carrier functionality
+                normalCarrierTurn();
+            }
         }
+
     }
 
     public void normalCarrierTurn() throws GameActionException{
@@ -97,16 +110,25 @@ public class Carrier extends Robot {
                 rc.setIndicatorString("mining");
                 if(touching(mainWell.getMapLocation())){
                     tryGetResource(mainWell);
+                    for(Direction dir : Direction.allDirections()){
+                        MapLocation newLoc = rc.getLocation().add(dir);
+                        if((newLoc.isAdjacentTo(mainWell.getMapLocation()) || newLoc.equals(mainWell.getMapLocation())) && rc.canMove(dir)){
+                            rc.move(dir);
+                            break;
+                        }
+                    }
                     if(getWeight() == GameConstants.CARRIER_CAPACITY){
                         mining = false;
                     }
                 }else{
+                    rc.setIndicatorString("naving to well");
                     bugNav(mainWell.getMapLocation());
                     bugNav(mainWell.getMapLocation());
                     searchNearbyWells();
                 }
             }
         }else{
+            rc.setIndicatorString("exploring");
             explore();
             explore();
         }
@@ -152,15 +174,16 @@ public class Carrier extends Robot {
     public void searchNearbyWells() throws GameActionException{
         WellInfo[] nearbyWells = rc.senseNearbyWells(rc.getType().visionRadiusSquared);
 
-        WellInfo closestWell = closestWell(nearbyWells, rc.getLocation());
-        if(closestWell != null){
+        for(WellInfo well : nearbyWells){
             if (mainWell == null) {
-                mainWell = closestWell;
+                mainWell = well;
                 adamantiumMining = mainWell.getResourceType().equals(ResourceType.ADAMANTIUM);
-            }else if((adamantiumMining && closestWell.getResourceType().equals(ResourceType.ADAMANTIUM)) || (!adamantiumMining && closestWell.getResourceType().equals(ResourceType.MANA))){
-                mainWell = closestWell;
+            }else if((adamantiumMining && well.getResourceType().equals(ResourceType.ADAMANTIUM)) || (!adamantiumMining && well.getResourceType().equals(ResourceType.MANA))){
+                mainWell = well;
             }
+
         }
+
     }
 
     public void deliverAnchor() throws GameActionException {

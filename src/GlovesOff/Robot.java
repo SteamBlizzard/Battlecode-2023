@@ -33,6 +33,8 @@ public class Robot {
     int FRIENDLY_HQ_MAX_INDEX = 33;
     int POSSIBLE_HQ_MIN_INDEX = 34;
     int POSSIBLE_HQ_MAX_INDEX = 45;
+    int ENEMY_LOCATION_MIN_INDEX = 46;
+    int ENEMY_LOCATION_MAX_INDEX = 63;
 
     public Robot(RobotController robot) throws GameActionException {
         rc = robot;
@@ -292,7 +294,6 @@ public class Robot {
             lastLocation = loc;
             bugNavTurns = 0;
         }
-        rc.setIndicatorString(Integer.toString(bugNavTurns));
         rc.setIndicatorDot(loc,0,255,255);
         bugNavTurns++;
         for(Direction d : fuzzyDirs){

@@ -50,7 +50,7 @@ public class Headquarters extends Robot {
                 }
             }
             // eliminate symmetry based off of well positions
-            for(int i = WELL_MIN_INDEX; i <WELL_MAX_INDEX; i++){
+            for(int i = WELL_MIN_INDEX; i <=WELL_MAX_INDEX; i++){
                 for(int j = 0; j < 3; j++){
                     int val = rc.readSharedArray(i);
                     if(val==0){
@@ -88,16 +88,33 @@ public class Headquarters extends Robot {
 
         rc.setIndicatorDot(closestEnemyHQ,255,255,0);
 
+        // eliminate enemies from array
+        for(int i = ENEMY_LOCATION_MIN_INDEX; i <= ENEMY_LOCATION_MAX_INDEX; i ++){
+            int val = rc.readSharedArray(i);
+            if(val != 0){
+                MapLocation loc = intToLoc(val);
+                rc.setIndicatorDot(loc,0,0,255);
+                RobotInfo r = null;
+                if(rc.canSenseRobotAtLocation(loc)){
+                    r = rc.senseRobotAtLocation(loc);
+                }
+                if(r==null || r.team != rc.getTeam().opponent()){
+                    clearLocationFromArray(loc,ENEMY_LOCATION_MIN_INDEX,ENEMY_LOCATION_MAX_INDEX);
+                }
+            }
+
+        }
+
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared,rc.getTeam().opponent());
         int launchers = 0;
         for (RobotInfo e : enemies){
             if(e.type == RobotType.LAUNCHER){
                 launchers++;
+                writeLocationToArray(e.location,ENEMY_LOCATION_MIN_INDEX,ENEMY_LOCATION_MAX_INDEX);
             }
         }
         if(launchers > 0){
-//            cryForHelp(home);
-            buildClosestTo(enemies[0].location, RobotType.LAUNCHER);
+            buildFurthestFrom(enemies[0].location, RobotType.LAUNCHER);
         }
 
         if(carrierCount < MAX_CARRIER_COUNT){
@@ -189,5 +206,10 @@ public class Headquarters extends Robot {
             return true;
         }
         return false;
+    }
+
+    public boolean buildFurthestFrom(MapLocation from, RobotType rt) throws GameActionException {
+        MapLocation myLoc = rc.getLocation();
+        return buildClosestTo(new MapLocation(myLoc.x - from.x, myLoc.y - from.y), rt);
     }
 }
