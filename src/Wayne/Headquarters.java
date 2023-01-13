@@ -193,6 +193,6 @@ public class Headquarters extends Robot {
 
     public boolean buildFurthestFrom(MapLocation from, RobotType rt) throws GameActionException {
         MapLocation myLoc = rc.getLocation();
-        return buildClosestTo(new MapLocation(myLoc.x - from.x, myLoc.y - from.y), rt);
+        return buildClosestTo(new MapLocation(myLoc.x - (from.x - myLoc.x), myLoc.y - (from.y - myLoc.y)), rt);
     }
 }

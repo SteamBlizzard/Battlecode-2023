@@ -1,4 +1,4 @@
-package GlovesOff;
+package SuperiorerCowPowers;
 
 import battlecode.common.*;
 

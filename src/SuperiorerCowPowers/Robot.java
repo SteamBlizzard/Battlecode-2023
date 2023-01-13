@@ -1,4 +1,4 @@
-package GlovesOff;
+package SuperiorerCowPowers;
 
 import battlecode.common.*;
 
@@ -7,6 +7,7 @@ import java.util.ArrayList;
 public class Robot {
     RobotController rc;
     MapLocation home = null;
+    MapLocation lastAttack = null;
 
     boolean RIGHT = false;
 
@@ -33,8 +34,6 @@ public class Robot {
     int FRIENDLY_HQ_MAX_INDEX = 33;
     int POSSIBLE_HQ_MIN_INDEX = 34;
     int POSSIBLE_HQ_MAX_INDEX = 45;
-    int ENEMY_LOCATION_MIN_INDEX = 46;
-    int ENEMY_LOCATION_MAX_INDEX = 63;
 
     public Robot(RobotController robot) throws GameActionException {
         rc = robot;
@@ -224,7 +223,7 @@ public class Robot {
 
     // tries moving in the given direction dir
     public boolean tryMove(Direction dir) throws GameActionException {
-        if(rc.canMove(dir) && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() == Direction.CENTER){
+        if(rc.canMove(dir) && rc.senseMapInfo(rc.getLocation().add(dir)).getCurrentDirection() != dir.opposite()){
             rc.move(dir);
             return true;
         }
@@ -234,6 +233,7 @@ public class Robot {
     public boolean tryAttack(MapLocation loc) throws GameActionException {
         if(rc.canAttack(loc)){
             rc.attack(loc);
+            lastAttack = loc;
             return true;
         }
         return false;
@@ -274,28 +274,6 @@ public class Robot {
         fuzzyMove(dirTo(loc));
     }
 
-    public void fuzzyClosest(MapLocation loc, MapLocation adjacent) throws GameActionException{
-        Direction dir = dirTo(loc);
-        MapLocation myLoc = rc.getLocation();
-        Direction[] fuzzyDirs = new Direction[] {
-                dir,
-                dir.rotateRight(),
-                dir.rotateLeft()
-        };
-        int closest = Integer.MAX_VALUE;
-        Direction best = null;
-        for(Direction d : fuzzyDirs){
-            int dist = myLoc.add(d).distanceSquaredTo(loc);
-            if(rc.canMove(d) && dist < closest && (adjacent == null || myLoc.add(d).isAdjacentTo(adjacent) || myLoc.add(d).equals(adjacent))){
-                closest = dist;
-                best = d;
-            }
-        }
-        if(best != null){
-            rc.move(best);
-        }
-    }
-
     MapLocation lastLocation = null;
     int minDist = Integer.MAX_VALUE;
     int bugNavTurns = 0;
@@ -316,12 +294,12 @@ public class Robot {
             lastLocation = loc;
             bugNavTurns = 0;
         }
+        rc.setIndicatorString(Integer.toString(bugNavTurns));
         rc.setIndicatorDot(loc,0,255,255);
         bugNavTurns++;
         for(Direction d : fuzzyDirs){
-            if(loc.distanceSquaredTo(rc.getLocation().add(d))<minDist && rc.canMove(d) && !rc.senseMapInfo(rc.getLocation().add(d)).getCurrentDirection().equals(d.opposite())){
+            if(loc.distanceSquaredTo(rc.getLocation().add(d))<minDist && rc.canMove(d)){
                 rc.move(d);
-                rc.setIndicatorString("I AM AN IDIOT");
                 minDist = distTo(loc);
                 return;
             }
